@@ -63,26 +63,3 @@ function initialization!(data::AbstractMatrix, qd::QuantizerData, ST::SingleThre
         end
     end
 end
-
-#####################################################################################
-#                                                                                   #
-#                                    Anisotropic                                    #
-#                                                                                   #
-#####################################################################################
-
-struct AnisotropicWeights{F<:AbstractFloat}
-    η::F
-    h_orthog::F
-    h_par::F
-end
-
-"""
-    function ComputeWeightsFromT(n_dim::Int, T::AbstractFloat)
-Computes η, orthogonal weight and parallel weight for the Anisotropic loss.
-"""
-function ComputeWeightsFromT(n_dim::Int, T::AbstractFloat)
-    η = compute_η(T, n_dim)
-    h_orthog = 1/(1+η)
-    h_par    = 1 - h_orthog
-    return AnisotropicWeights(η, h_orthog, h_par)
-end

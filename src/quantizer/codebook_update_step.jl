@@ -95,7 +95,7 @@ end
 
 ######################################## IVF methods #############################################
 
-function update_codebook!(data::AbstractMatrix, qd::QuantizerData, IVF::InvertedIndex,
+function update_codebook!(data::AbstractMatrix, qd::QuantizerData, update_method::InvertedIndex,
                             processing::SingleThreaded, optimisation::Exact)
     for j in 1:qd.n_codebooks
         for k in 1:qd.n_centers
@@ -109,7 +109,7 @@ function update_codebook!(data::AbstractMatrix, qd::QuantizerData, IVF::Inverted
     end
 end
 
-function update_codebook!(data::AbstractMatrix, qd::QuantizerData, IVF::InvertedIndex,
+function update_codebook!(data::AbstractMatrix, qd::QuantizerData, update_method::InvertedIndex,
                             processing::MultiThreaded, optimisation::Exact)
     Threads.@threads for j in 1:qd.n_codebooks
         for k in 1:qd.n_centers
@@ -122,5 +122,88 @@ function update_codebook!(data::AbstractMatrix, qd::QuantizerData, IVF::Inverted
                 qd.C[C_i1:C_i2] = dropdims(mean(@inbounds(@view(data[((j-1) * qd.n_dims_center + 1):j*qd.n_dims_center, idxs])),dims=2), dims=2)
             end
         end
+    end
+end
+
+
+#################################################################################################
+#                                                                                               #
+#                                        Anisotropic loss                                       #
+#                                                                                               #
+#################################################################################################
+
+compute_inner_matrix(dp::AbstractArray, η::AnisotropicWeights) = (η.h_par - η.h_orthog)*(dp*dp')+η.h_orthog*I(length(dp))
+
+function compute_BTx(data::AbstractMatrix, qd::QuantizerData, η::AnisotropicWeights)
+    sumBTx = zeros(qd.n_dims_center * qd.n_codebooks * qd.n_centers)
+    for i in 1:qd.n_dp
+        sumBTx+= (η.h_par*qd.I.B[i])*@view(data[:,i])
+    end
+    return sumBTx
+end
+
+function compute_BTB(data::AbstractMatrix, qd::QuantizerData, η::AnisotropicWeights, threading::SingleThreaded)
+    Bsize = (qd.n_dims_center * qd.n_codebooks * qd.n_centers)
+    sumBTB = zeros(Float32, Bsize, Bsize)
+    for i in 1:qd.n_dp
+        inner = compute_inner_matrix(@view(data[:,i]), η)
+        left_mul = qd.I.B[i]*inner
+        a,b,c = findnz(sparse(left_mul))
+        a = unique(a)
+        k = 0
+        for i in a
+            for j in a
+                k+=1
+                sumBTB[i,j] += c[k]
+            end
+        end
+    end
+    return sum(sumBTB,dims=3)
+end
+
+function compute_BTB(data::AbstractMatrix, qd::QuantizerData, η::AnisotropicWeights, threading::MultiThreaded)
+    Bsize = (qd.n_dims_center * qd.n_codebooks * qd.n_centers)
+    sumBTB = zeros(Float32, Bsize, Bsize, Threads.nthreads())
+    Threads.@threads for i in 1:qd.n_dp
+        inner = compute_inner_matrix(@view(data[:,i]), η)
+        left_mul = qd.I.B[i]*inner
+        a,b,c = findnz(sparse(left_mul))
+        a = unique(a)
+        k = 0
+        for i in a
+            for j in a
+                k+=1
+                sumBTB[i,j,Threads.threadid()] += c[k]
+            end
+        end
+    end
+    return dropdims(sum(sumBTB,dims=3), dims=3)
+end
+
+
+function compute_BMatrices(data::AbstractMatrix, qd::QuantizerData, η::AnisotropicWeights, processing::Processing)
+    BTB = compute_BTB(data, qd, η, processing)
+    BTx = compute_BTx(data, qd, η)
+    return BTB, BTx
+end
+
+function compute_BMatrices(data::AbstractMatrix, qd::QuantizerData, η::AnisotropicWeights, processing::GPU)
+    BTB = compute_BTB(data, qd, η, MultiThreaded())
+    BTx = compute_BTx(data, qd, η)
+    BTB = CuArray(BTB)
+    BTx = CuArray(BTx)
+    return BTB, BTx
+end
+
+function update_codebook!(data::AbstractMatrix, qd::QuantizerData, η::AnisotropicWeights,
+                                processing::Processing, optimisation_method::OptimizationMethod)
+    BTB, BTx = compute_BMatrices(data, qd, η, processing)
+    try
+        qd.C[:] .= optimisation!(BTB, BTx, optimisation_method, qd)
+    catch
+        @warn("""Singular Matrix encountered, some clusters do not contain assignments.
+        This happens when the number of clusters is relatively high ccompared to the number of data points.
+        \nOptimisation method changed to Approximate""")
+        qd.C[:] .= optimisation!(BTB, BTx, Nesterov(), qd)
     end
 end

@@ -42,7 +42,7 @@ function builder(data::Matrix; T::Real, kwargs...)
     n_dims, n_dp = size(data)
     config = generate_data_dependent_defaults(n_dp, n_dims)
     config = merge(config, kwargs)
-    check_kwargs(config, n_dims)
+    config = check_kwargs(config, n_dims)
     return config
     # # Step 1 - Preclustering
     # if config[:precluster_data]

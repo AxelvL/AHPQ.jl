@@ -44,14 +44,14 @@ end
 """
     function assign_cluster(qd::QuantizerData, c_ij::Int, i::Int, j::Int, method::UpdateMethod)
 Helper function for L2 partition assignment.\n 
-Updates the indexes in `qd.B` for the selected method.
+Updates the indexes in `qd.I` for the selected method.
 """
-function assign_cluster!(qd::QuantizerData, c_ij::Int, i::Int, j::Int, method::BMatrix, threading::Processing)
+function assign_cluster!(qd::QuantizerData, c_ij::Integer, i::Int, j::Int, method::BMatrix)
     b_1, b_2 = (j-1)*qd.n_dims_center+1, ((qd.n_centers * (j-1) * qd.n_dims_center) + 1) + ((c_ij-1)*qd.n_dims_center)
     qd.I.B[i][b_2: (b_2+qd.n_dims_center-1),b_1:(b_1+qd.n_dims_center-1)] = sparse(I, qd.n_dims_center, qd.n_dims_center)
     qd.I.assignments[j,i] = c_ij
 end
-function assign_cluster!(qd::QuantizerData, c_ij::Int, i::Int, j::Int, method::InvertedIndex, threading::SingleThreaded)
+function assign_cluster!(qd::QuantizerData, c_ij::Integer, i::Int, j::Int, method::InvertedIndex)
     append!(qd.I.IVF[j][c_ij],i)
     qd.I.assignments[j,i] = c_ij
 end
@@ -83,7 +83,7 @@ function assignment_loop!(data::AbstractMatrix, qd::QuantizerData, method::BMatr
     Threads.@threads for i in 1:qd.n_dp
         for j in 1:qd.n_codebooks
             local_loss, c_ij = select_closest_center(data, qd, i, j)
-            assign_cluster!(qd, c_ij, i, j, method, threading)
+            assign_cluster!(qd, c_ij, i, j, method)
         end
     end
     return nothing
@@ -107,7 +107,7 @@ function assignment_loop!(data::AbstractMatrix, qd::QuantizerData, method::Updat
     for i in 1:qd.n_dp
         for j in 1:qd.n_codebooks
             local_loss, c_ij = select_closest_center(data, qd, i, j)
-            assign_cluster!(qd, c_ij, i, j, method, threading)
+            assign_cluster!(qd, c_ij, i, j, method)
             total_loss += local_loss
         end
     end
@@ -119,10 +119,110 @@ end
     function assignment_step(data::AbstractMatrix, qd::QuantizerData)
 Assignment step for L2_loss: after having recomputed / initialized the codebooks,
 we find for each u_j per datapoint x_i the favorable (l2-closest) cluster assignment.
-Possible configuations: MultiThreading on/off, InvertedIndex on/off.
 """
 function assignment_step!(data::AbstractMatrix, qd::QuantizerData, method::UpdateMethod, threading::Processing)
     reset_assignments!(qd, method)
     loss = assignment_loop!(data, qd, method, threading)
     return loss
+end
+
+#################################################################################################
+#                                                                                               #
+#                          Anisotropic loss - Approximate Assignments                           #
+#                                                                                               #
+#################################################################################################
+
+"""
+    function rebuild_Bmatrix(qd::QuantizerData)
+Helper function of the Anisotropic Assignment Step.\nRebuilds the B matrices (identiy matrices) 
+from the given assignments. 
+"""
+function rebuild_Bmatrix!(qd::QuantizerData)
+    for i in 1:qd.n_dp
+        qd.I.B[i] = spzeros(Bool, (qd.n_dims_center * qd.n_codebooks * qd.n_centers),qd.n_dims)
+        for j in 1:qd.n_codebooks
+            assign_cluster!(qd, qd.I.assignments[j,i], i, j, BMatrix())
+        end
+    end
+end
+
+"""
+    function reconstruct_codeword_newcenter(qd::QuantizerData, codeword::AbstractArray, j::Int, k::Int)    
+Helper function for coordinate descent.\n 
+Updates the full-dimensional codeword at the cluster location given the codebook number `j` and cluster number `k`.
+"""
+function reconstruct_codeword_newcenter(qd::QuantizerData, codeword::AbstractArray, j::Int, k::Int)
+    cw_i1, cw_i2 = (j-1)*qd.n_dims_center+1, j*qd.n_dims_center
+    C_i1 = ((j-1) * qd.n_dims_center * qd.n_centers) + ((k-1) * qd.n_dims_center) + 1
+    C_i2 = ((j-1) * qd.n_dims_center * qd.n_centers) + ((k) * qd.n_dims_center)
+    codeword[cw_i1:cw_i2] = @view qd.C[C_i1:C_i2]
+    return codeword
+end
+
+"""
+    function coordinate_descent(qd::QuantizerData, codeword::AbstractArray, i::Int, j::Int, η::AnisotropicWeights)
+Approximate assignment helper for non-orthogonal Anisotropic loss funciton. Selects the optimal center for a given 
+codebook, holding the rest of the codeword constant.
+"""
+function coordinate_descent(data::AbstractMatrix, qd::QuantizerData, codeword::AbstractArray, i::Int, j::Int, η::AnisotropicWeights)
+    d_i1, d_i2 = (j-1)*qd.n_dims_center+1, j*qd.n_dims_center        
+    distances = zeros(qd.n_centers)
+    for k in 1:qd.n_centers
+        codeword = reconstruct_codeword_newcenter(qd, codeword, j, k)
+        distances[k] = anisotropic_loss(@view(data[:, i]), 
+                                        codeword,
+                                        η)
+    end
+    choice = argmin(distances)
+    local_loss = distances[choice]
+    return local_loss, choice
+end
+
+"""
+    function approx_assignment_dp(data::AbstractMatrix, qd::QuantizerData, i::Integer, max_iter::Int)
+Approximate anisotropic loss-based assignment on the data point level. Given a data set, 
+an index for the datapoint, the up-to-date QuantizerData and the weights for the Anisotropic loss function,
+finds the optimal cluster assignment for all codebooks and updates the assignments. Returns the loss for that dp.
+"""
+function approx_assignment_dp!(data::AbstractMatrix, qd::QuantizerData, i::Integer,η::AnisotropicWeights, max_iter::Int)
+    count = 0
+    dict_old = 0
+    codeword = qd.I.B[i]'qd.C
+    dp_loss = 0 
+    while (count < max_iter) && (dict_old != qd.I.assignments[:,i])
+        dict_old = deepcopy(qd.I.assignments[:,i])
+        for j in 1:qd.n_codebooks
+            dp_loss, c_ij = coordinate_descent(data, qd, codeword, i, j, η)
+            qd.I.assignments[j,i] = UInt16(c_ij)
+            codeword = reconstruct_codeword_newcenter(qd, codeword, j, c_ij)
+        end
+        count +=1
+    end
+    return dp_loss
+end
+
+"""
+`function assignment_step!(data::AbstractMatrix, qd::QuantizerData, η::AnisotropicWeights, max_iter::Int,
+    threading::SingleThreaded)`
+
+Assignment step for Anisotropic Loss: after having recomputed / initialized the codebooks,
+we find for each `u_j ` (per codebook) per datapoint x_i the favorable (closest in terms of anisotropic loss) cluster assignment.
+"""
+function assignment_step!(data::AbstractMatrix, qd::QuantizerData, η::AnisotropicWeights, max_iter::Int,
+                                        threading::SingleThreaded)
+    total_loss = 0
+    for i in 1:qd.n_dp
+        total_loss += approx_assignment_dp!(data, qd, i, η, max_iter)
+    end
+    rebuild_Bmatrix!(qd)
+    return total_loss / qd.n_dp
+end
+
+function assignment_step!(data::AbstractMatrix, qd::QuantizerData, η::AnisotropicWeights, max_iter::Int,
+                                        threading::MultiThreaded)
+    Threads.@threads for i in 1:qd.n_dp
+        approx_assignment_dp!(data, qd, i, η, max_iter)
+    end
+    rebuild_Bmatrix!(qd)
+    return 
 end
