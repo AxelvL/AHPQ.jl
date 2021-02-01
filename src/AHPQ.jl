@@ -4,6 +4,7 @@ module AHPQ
     using Random
 
     include("utils/configs.jl")
+    include("utils/distances.jl")
     include("quantizer/quantizer.jl")
     include("builder.jl")
     include("searcher.jl")

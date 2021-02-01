@@ -34,7 +34,7 @@ function get_indexes(qd::QuantizerData, i::Int, j::Int)
     return d_i1, d_i2, c_i
 end
 
-function initialization!(data::AbstractMatrix, qd::QuantizerData, MT::MultiThreading)
+function initialization!(data::AbstractMatrix, qd::QuantizerData, MT::MultiThreaded)
     Threads.@threads for i in 1:qd.n_codebooks
         random_indexes = shuffle!(collect(1:qd.n_dp))[1:qd.n_centers] # Pick random indexes
         for (j, idx) in enumerate(random_indexes)

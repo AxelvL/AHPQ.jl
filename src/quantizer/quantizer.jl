@@ -6,7 +6,7 @@ function l2_quantization(data::AbstractMatrix, qd::QuantizerData, config::NamedT
     if config[:verbose]
         @info("Starting reconstruction loss quantizer...")
     end
-    config.multithreading ? threading = MultiThreading() : threading = SingleThreaded()
+    config.multithreading ? threading = MultiThreaded() : threading = SingleThreaded()
     initialization!(data, qd, threading)
     if config[:verbose]
         @info("Finished initialization step...")

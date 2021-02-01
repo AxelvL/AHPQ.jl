@@ -1,0 +1,1 @@
+sqeuclidean(a,b) = sqrt(sum((a.-b).^2))  

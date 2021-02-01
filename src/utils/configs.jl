@@ -1,9 +1,15 @@
 struct SingleThreaded end
-struct MultiThreading end 
+struct MultiThreaded end
+Threading = Union{SingleThreaded, MultiThreaded}
+struct InvertedIndex end
+struct BMatrix end 
+UpdateMethod = Union{InvertedIndex, BMatrix}
 struct CPU end
 struct GPU end
+OptimizationProcessing = Union{CPU, GPU}
 struct Exact end
 struct Nesterov end
+OptimizationMethod = Union{Exact, Nesterov}
 
 const DEFAULT_CONFIG = (n_codebooks=0,
                         n_centers=8,
