@@ -28,12 +28,22 @@ function GenerateQuantizerData(data::AbstractMatrix, n_codebooks::Int, n_centers
     return QuantizerData(n_codebooks, n_centers, n_dp, n_dim, n_dims_center, I, C)
 end
 
+"""
+    function get_indexes(qd::QuantizerData, i::Int, j::Int)    
+Helper function for the initialization step.\n 
+Converts the dimension and cluster numbers to the flattened format of the codebook.
+"""
 function get_indexes(qd::QuantizerData, i::Int, j::Int)
     d_i1, d_i2 = (i-1)*qd.n_dims_center+1, i*qd.n_dims_center
     c_i = (i-1)*qd.n_centers*qd.n_dims_center + (j-1)*qd.n_dims_center + 1
     return d_i1, d_i2, c_i
 end
 
+"""
+    function initialization!(data::AbstractMatrix, qd::QuantizerData, MT::MultiThreaded)
+Initialization step of the Product Quantization algorithm. Assigns codeowords to the codebook
+as random selections from the data points.
+"""
 function initialization!(data::AbstractMatrix, qd::QuantizerData, MT::MultiThreaded)
     Threads.@threads for i in 1:qd.n_codebooks
         random_indexes = shuffle!(collect(1:qd.n_dp))[1:qd.n_centers] # Pick random indexes

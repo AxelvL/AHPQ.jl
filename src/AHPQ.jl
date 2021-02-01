@@ -1,7 +1,10 @@
 module AHPQ
     using LinearAlgebra
-    using SparseArrays # For memory-efficient identity matrices
-    using Random
+    using SparseArrays         # For memory-efficient identity matrices
+    using Random: shuffle!     # For random initialisation
+    using CUDA: CuArray        # For GPU Processing
+    using Zygote: gradient     # For fast gradient computation
+    using Statistics: mean     # For fast mean computation
 
     include("utils/configs.jl")
     include("utils/distances.jl")

@@ -46,7 +46,7 @@ end
 Helper function for L2 partition assignment.\n 
 Updates the indexes in `qd.B` for the selected method.
 """
-function assign_cluster!(qd::QuantizerData, c_ij::Int, i::Int, j::Int, method::BMatrix, threading::Threading)
+function assign_cluster!(qd::QuantizerData, c_ij::Int, i::Int, j::Int, method::BMatrix, threading::Processing)
     b_1, b_2 = (j-1)*qd.n_dims_center+1, ((qd.n_centers * (j-1) * qd.n_dims_center) + 1) + ((c_ij-1)*qd.n_dims_center)
     qd.I.B[i][b_2: (b_2+qd.n_dims_center-1),b_1:(b_1+qd.n_dims_center-1)] = sparse(I, qd.n_dims_center, qd.n_dims_center)
     qd.I.assignments[j,i] = c_ij
@@ -90,7 +90,6 @@ function assignment_loop!(data::AbstractMatrix, qd::QuantizerData, method::BMatr
 end
 
 function assignment_loop!(data::AbstractMatrix, qd::QuantizerData, method::InvertedIndex, threading::MultiThreaded)
-    println("Config: InvertedIndex, MultiThreaded")
     data_locks = Array{Bool, 2}(undef, qd.n_codebooks, qd.n_centers)
     fill!(data_locks, true)
     Threads.@threads for i in 1:qd.n_dp
@@ -122,7 +121,7 @@ Assignment step for L2_loss: after having recomputed / initialized the codebooks
 we find for each u_j per datapoint x_i the favorable (l2-closest) cluster assignment.
 Possible configuations: MultiThreading on/off, InvertedIndex on/off.
 """
-function assignment_step!(data::AbstractMatrix, qd::QuantizerData, method::UpdateMethod, threading::Threading)
+function assignment_step!(data::AbstractMatrix, qd::QuantizerData, method::UpdateMethod, threading::Processing)
     reset_assignments!(qd, method)
     loss = assignment_loop!(data, qd, method, threading)
     return loss

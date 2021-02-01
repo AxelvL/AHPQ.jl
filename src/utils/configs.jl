@@ -1,12 +1,10 @@
 struct SingleThreaded end
 struct MultiThreaded end
-Threading = Union{SingleThreaded, MultiThreaded}
+struct GPU end
+Processing = Union{SingleThreaded, MultiThreaded, GPU}
 struct InvertedIndex end
 struct BMatrix end 
 UpdateMethod = Union{InvertedIndex, BMatrix}
-struct CPU end
-struct GPU end
-OptimizationProcessing = Union{CPU, GPU}
 struct Exact end
 struct Nesterov end
 OptimizationMethod = Union{Exact, Nesterov}
@@ -21,7 +19,7 @@ const DEFAULT_CONFIG = (n_codebooks=0,
                         stopcond=9e-2,
                         verbose=false,
                         max_iter_assignments=10,
-                        optimization="exact",
+                        optimisation="exact",
                         multithreading=false,
                         GPU=false,
                         increment_steps=4,
@@ -52,3 +50,10 @@ function check_kwargs(config, n_dims)
     end
 end
 
+function generate_config_vars(config)
+    thread = if config.multithreading MultiThreaded() else SingleThreaded() end
+    update_method = if config.inverted_index InvertedIndex() else BMatrix() end
+    optim_method = if config.optimisation=="exact" Exact() else Nesterov() end
+    processing = if config.GPU GPU() else thread end
+    return thread, update_method, optim_method, processing
+end
