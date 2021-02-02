@@ -9,6 +9,7 @@ module AHPQ
     include("utils/configs.jl")
     include("utils/distances.jl")
     include("quantizer/quantizer.jl")
+    include("quantizer/preclustering.jl")
     include("builder.jl")
     include("searcher.jl")
 

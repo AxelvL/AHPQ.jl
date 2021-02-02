@@ -1,3 +1,11 @@
+struct AHPQdata
+    clusterdata
+    qd::QuantizerData
+    reorder::AbstractMatrix
+    norms::AbstractArray
+    config::NamedTuple
+end
+
 """
     builder(data::Matrix, T::AbstractFloat; n_codebooks::Int, n_centers::Int, kwargs...)
 
@@ -40,39 +48,49 @@ Leave out the keyword parameter (T::AbstractFloat) to train on Euclidean loss in
 function builder(data::Matrix; T::Real, kwargs...)
     # Step 0 - Retrieve configurations
     n_dims, n_dp = size(data)
-    config = generate_data_dependent_defaults(n_dp, n_dims)
-    config = merge(config, kwargs)
-    config = check_kwargs(config, n_dims)
-    return config
-    # # Step 1 - Preclustering
-    # if config[:precluster_data]
-    #     # Step 1a - Generate Clusters
-    #     if config[:verbose]
-    #         @info("Generating precluster data...")
-    #     end
-    #     clusterdata =  GenerateClusterData(data, merge(config, (; use_inverted_index=true,
-    #                                                               verbose=false)))
+    config = check_kwargs(kwargs, n_dp, n_dims)
+    ########traindata = subsample
 
-    #     # Step 1b - Generate residuals
-    #     for (i, center) in enumerate(eachcol(clusterdata.centers))
-    #         data[:,clusterdata.assignments[i]] .-= center
-    #     end
-    # else
-    #     clusterdata = nothing
-    # end
+    # Step 1 - Preclustering
+    if config[:a] > 0
+        if config[:verbose] @info("Generating precluster data...") end
+        clusterdata =  GenerateClusterData(data, config)
 
-    # # Step 2 - Quantization
-    # pqdata = GenerateQuantizerData(data; n_codebooks=n_codebooks, n_centers=n_centers)
-    # if config[:incremental_fitting]
-    #     pqdata = incremental_quantization(pqdata, config)
-    # else
-    #     pqdata = quantization(pqdata, config)
-    # end
+        if config[:verbose] @info("Computing residuals...") end
+        for (i, center) in enumerate(eachcol(clusterdata.centers))
+             data[:,clusterdata.assignments[i]] .-= center
+        end
+        norms = mapslices(norm, data, dims=1)
+    else 
+        clusterdata = nothing 
+        norms = ones(n_dp)' 
+    end
 
-    # # Step 3 - Generate residuals for exact reordering
-    # for i in 1:n_dp
-    #     pqdata.data[:,i] .-= pqdata.encoding.B[i]'pqdata.encoding.C
-    # end
+    # Step 2 - Quantization
+    codebook=0
+    traindata = if config.training_points > 0 subsample(config.training_points, data./norms) else data./norms end
+    η = if T > 0 ComputeWeightsFromT(n_dims, T) else L2_loss() end
+    if config[:increment_steps]  > 0
+        qd = incremental_quantization(traindata, η, config) 
+    else 
+        if config[:initialise_with_euclidean_loss] 
+            qd = quantizer(traindata, L2_loss(), codebook, config) 
+            codebook = deepcopy(qd.C)
+        end
+        qd = quantizer(traindata, L2_loss, codebook, config)
+    end
+    codebook = deepcopy(qd.C)
+    if config.training_points > 0
+        qd = GenerateQuantizerData(data, config.n_codebooks, config.n_centers)
+        qd.C[:].= codebook
+        thread = if config.multithreading MultiThreaded() else SingleThreaded() end
+        assignment_step!(data, qd, BMatrix(), thread)
+    end
 
-    # return (preclusterdata = clusterdata, pqdata = pqdata, config = config)
+    # Step 3 - Generate residuals for exact reordering
+    for i in 1:n_dp
+        data[:,i] .-= norms[i].*(qd.I.B[i]'qd.C)
+    end
+
+    return AHPQdata(clusterdata, qd, data, norms, config)
 end
