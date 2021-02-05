@@ -3,6 +3,7 @@ include("partition_assignment_step.jl")
 include("codebook_update_step.jl")
 
 function quantizer(data::AbstractMatrix, η::L2_loss, codebook::Any, config::NamedTuple)
+    if config[:verbose] @info("Starting L2 Quantization...") end
     thread, update_method, optim_method, processing = generate_config_vars(config)
     qd = GenerateQuantizerData(data, config.n_codebooks, config.n_centers)
     initialization!(data, qd, thread, codebook)
@@ -14,6 +15,12 @@ function quantizer(data::AbstractMatrix, η::L2_loss, codebook::Any, config::Nam
         iteration_loss = assignment_step!(data, qd, update_method, thread)
         update_codebook!(data, qd, update_method, processing, optim_method)
         dist = sqeuclidean(C_old, qd.C)
+        if config[:verbose] && config[:multithreading] @info("Update distance: $dist")
+        elseif config[:verbose] @info("Iteration loss: $iteration_loss\tUpdate distance:$dist") end
+    end
+    if config[:verbose]
+        if i < config[:max_iter] @info("Product quantization converged after $i iterations") 
+        else @info("Training stopped after reaching max ($i) iterations") end
     end
     if config[:inverted_index] rebuild_Bmatrix!(qd) end
     return qd

@@ -94,3 +94,12 @@ function MIPS(ahpq::AHPQdata, query::AbstractArray, k::Int)
         return @inbounds @view dp_real_ids[partialsortperm(distances, 1:k, rev=true)]
     end
 end
+
+function MIPS(ahpq::AHPQdata, queries::AbstractMatrix, n_neighbors::Int)
+    n_queries = size(queries)[2]
+    ranking = Array{Int64,2}(undef, n_neighbors, n_queries)
+    Threads.@threads for j in 1:n_queries
+        ranking[:,j] = MIPS(ahpq, @inbounds(@view(queries[:,j])), n_neighbors)
+    end
+    return ranking
+end

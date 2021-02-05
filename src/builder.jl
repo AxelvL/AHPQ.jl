@@ -70,14 +70,17 @@ function builder(data::Matrix; T::Real, kwargs...)
     codebook=0
     traindata = if config.training_points > 0 subsample(config.training_points, data./norms) else data./norms end
     η = if T > 0 ComputeWeightsFromT(n_dims, T) else L2_loss() end
-    if config[:increment_steps]  > 0
+    if config[:increment_steps] > 0
+        if config[:verbose] @info("Starting incremental initialisation...") end
         qd = incremental_quantization(traindata, η, config) 
     else 
-        if config[:initialise_with_euclidean_loss] 
-            qd = quantizer(traindata, L2_loss(), codebook, config) 
+        if (config[:initialise_with_euclidean_loss]) & (T > 0)
+            if config[:verbose] @info("Starting L2 initialisation...") end
+            qd = quantizer(traindata, L2_loss(), codebook, merge(config,(;verbose=false))) 
             codebook = deepcopy(qd.C)
         end
-        qd = quantizer(traindata, L2_loss(), codebook, config)
+        if config[:verbose] @info("Finished initialisation...") end
+        qd = quantizer(traindata, η, codebook, config)
     end
     codebook = deepcopy(qd.C)
     if config.training_points > 0

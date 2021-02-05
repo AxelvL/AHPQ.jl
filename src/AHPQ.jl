@@ -12,6 +12,7 @@ module AHPQ
     include("quantizer/preclustering.jl")
     include("builder.jl")
     include("searcher.jl")
+    include("utils/testmetrics.jl")
 
     export builder
     export searcher
