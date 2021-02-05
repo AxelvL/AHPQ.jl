@@ -77,7 +77,7 @@ function builder(data::Matrix; T::Real, kwargs...)
             qd = quantizer(traindata, L2_loss(), codebook, config) 
             codebook = deepcopy(qd.C)
         end
-        qd = quantizer(traindata, L2_loss, codebook, config)
+        qd = quantizer(traindata, L2_loss(), codebook, config)
     end
     codebook = deepcopy(qd.C)
     if config.training_points > 0

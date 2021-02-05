@@ -55,6 +55,20 @@ function compute_distances(qd::QuantizerData, dp_ids::AbstractArray, LUT::Abstra
     distances_new
 end
 
+function compute_distances(qd::QuantizerData, dp_ids::AbstractArray, LUT::AbstractMatrix, distances::Int64, norms::AbstractArray)
+    n_dp = length(dp_ids)
+    distances = zeros(n_dp)
+    for (i,ii) in enumerate(dp_ids)
+        j = UInt8(0)
+        @inbounds for k in @inbounds @view qd.I.assignments[:,ii]
+            j+= UInt8(1)
+            @inbounds distances[i] += @inbounds LUT[j,k]
+        end
+    end
+    return distances
+end
+
+
 function MIPS(ahpq::AHPQdata, query::AbstractArray, k::Int)
     
      # Step 1
@@ -62,6 +76,7 @@ function MIPS(ahpq::AHPQdata, query::AbstractArray, k::Int)
         dp_ids, distances = identify_relevant_dps(ahpq, query)
     else
         dp_ids = 1:ahpq.qd.n_dp
+        distances = 0
     end
 
     # Step 2
