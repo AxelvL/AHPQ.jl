@@ -13,7 +13,8 @@ const DEFAULT_CONFIG = (n_codebooks=0,
                         n_centers=8,
                         a=0,
                         b=0,
-                        initialise_with_euclidean_loss=true, 
+                        initialise_with_l2_loss=true, 
+                        T_preclustering=-1,
                         inverted_index=false, 
                         max_iter=1000,
                         stopcond=1e-2,
@@ -70,7 +71,9 @@ function check_kwargs(kwargs, n_dp, n_dims, T)
         config = merge(config, (;optimisation="Nesterov")) 
         @warn("GPU processing was selected, codebook optimisation has automatically changed to approximate method.")
     end
-
+    if config.T_preclustering < 0
+        config = merge(config, (;T_preclustering=T))
+    end
     return config, T
 end
 

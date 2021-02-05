@@ -49,11 +49,13 @@ function builder(data::Matrix; T::Real, kwargs...)
     # Step 0 - Retrieve configurations
     n_dims, n_dp = size(data)
     config, T = check_kwargs(kwargs, n_dp, n_dims, T)
+    η = if T > 0 ComputeWeightsFromT(n_dims, T) else L2_loss() end
+    η_cd = if (config.T_preclustering > 0) ComputeWeightsFromT(n_dims, config.T_preclustering) else L2_loss() end
     
     # Step 1 - Preclustering
     if config[:a] > 0
         if config[:verbose] @info("Generating precluster data...") end
-        clusterdata =  GenerateClusterData(data, config)
+        clusterdata =  GenerateClusterData(data, η_cd, config)
 
         if config[:verbose] @info("Computing residuals...") end
         for (i, center) in enumerate(eachcol(clusterdata.centers))
@@ -68,12 +70,11 @@ function builder(data::Matrix; T::Real, kwargs...)
     # Step 2 - Quantization
     codebook=0
     traindata = if config.training_points > 0 subsample(config.training_points, data./norms) else data./norms end
-    η = if T > 0 ComputeWeightsFromT(n_dims, T) else L2_loss() end
     if config[:increment_steps] > 0
         if config[:verbose] @info("Starting incremental initialisation...") end
         qd = incremental_quantization(traindata, η, config) 
     else 
-        if (config[:initialise_with_euclidean_loss]) & (T > 0)
+        if (config[:initialise_with_l2_loss]) & (T > 0)
             if config[:verbose] @info("Starting L2 initialisation...") end
             qd = quantizer(traindata, L2_loss(), codebook, merge(config,(;verbose=false))) 
             codebook = deepcopy(qd.C)

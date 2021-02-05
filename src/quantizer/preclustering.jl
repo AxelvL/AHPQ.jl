@@ -3,8 +3,8 @@ struct ClusterData{V<:AbstractVector,A<:AbstractArray}
     centers::A
 end
 
-function GenerateClusterData(data::AbstractMatrix, config::NamedTuple)
-    cd = incremental_quantization(data, L2_loss(), merge(config, (; n_codebooks=1, n_centers=config[:a],
+function GenerateClusterData(data::AbstractMatrix, η::Weights, config::NamedTuple)
+    cd = quantizer(data, η, 0, merge(config, (; n_codebooks=1, n_centers=config[:a],
                                             verbose=false)))
     codebook = deepcopy(cd.C)
     cd = GenerateQuantizerData(data, 1, config.a)
