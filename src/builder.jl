@@ -1,7 +1,7 @@
 struct AHPQdata
     clusterdata
     qd::QuantizerData
-    reorder::AbstractMatrix
+    residuals::AbstractMatrix
     norms::AbstractArray
     config::NamedTuple
 end

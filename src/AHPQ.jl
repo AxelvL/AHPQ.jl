@@ -14,5 +14,6 @@ module AHPQ
     include("searcher.jl")
 
     export builder
+    export searcher
 
 end
