@@ -48,9 +48,8 @@ Leave out the keyword parameter (T::AbstractFloat) to train on Euclidean loss in
 function builder(data::Matrix; T::Real, kwargs...)
     # Step 0 - Retrieve configurations
     n_dims, n_dp = size(data)
-    config = check_kwargs(kwargs, n_dp, n_dims)
-    ########traindata = subsample
-
+    config, T = check_kwargs(kwargs, n_dp, n_dims, T)
+    
     # Step 1 - Preclustering
     if config[:a] > 0
         if config[:verbose] @info("Generating precluster data...") end

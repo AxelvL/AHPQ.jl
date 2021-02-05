@@ -15,6 +15,6 @@ module AHPQ
     include("utils/testmetrics.jl")
 
     export builder
-    export searcher
+    export MIPS
 
 end

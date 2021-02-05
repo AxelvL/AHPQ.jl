@@ -36,6 +36,7 @@ function quantizer(data::AbstractMatrix, η::AnisotropicWeights, codebook::Any, 
     i = 0
     while (dist > config[:stopcond]) && (i < config[:max_iter])
         i += 1
+        println("size = $(size(data))")
         C_old = deepcopy(qd.C)
         iteration_loss = assignment_step!(data, qd, η, config[:max_iter_assignments], thread)
         update_codebook!(data, qd, η, processing, optim_method)

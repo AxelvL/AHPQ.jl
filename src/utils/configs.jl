@@ -17,7 +17,7 @@ const DEFAULT_CONFIG = (n_codebooks=0,
                         inverted_index=false, 
                         max_iter=1000,
                         stopcond=1e-2,
-                        verbose=true,
+                        verbose=false,
                         max_iter_assignments=10,
                         optimisation="exact",
                         multithreading=false,
@@ -39,7 +39,11 @@ function generate_data_dependent_defaults(n_dp::Int, n_dims::Int)
     return config
 end
 
-function check_kwargs(kwargs, n_dp, n_dims) 
+function check_kwargs(kwargs, n_dp, n_dims, T)
+    if (compute_η(T, n_dims) < 1.01) & (compute_η(T, n_dims) > .99)
+        @warn("Anisotropic Loss with T=$T for $n_dims dimensions is equivalent to L2, updated loss function to L2 loss.")
+        T = 0
+    end 
     for key in keys(kwargs)
         if key ∉ keys(DEFAULT_CONFIG)
             error("$key is not a valid configuration keyword")
@@ -67,7 +71,7 @@ function check_kwargs(kwargs, n_dp, n_dims)
         @warn("GPU processing was selected, codebook optimisation has automatically changed to approximate method.")
     end
 
-    return config
+    return config, T
 end
 
 function generate_config_vars(config)
