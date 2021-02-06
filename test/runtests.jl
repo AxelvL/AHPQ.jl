@@ -1,6 +1,7 @@
-using AHPQ
-using Test
+using SafeTestsets
 
-@testset "AHPQ.jl" begin
-    # Write your tests here.
+@safetestset  "AHPQ.jl" begin
+    include("builder.jl")
+    include("searcher.jl")
+    include("testmetrics.jl")
 end

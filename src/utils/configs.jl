@@ -67,7 +67,7 @@ function check_kwargs(kwargs, n_dp, n_dims, T)
     if tp < config.n_centers
         @error("$tp Training points is lower than $(config.n_centers)")
     end
-    if config.GPU 
+    if (config.GPU) & (config.optimisation ≠ "Nesterov")
         config = merge(config, (;optimisation="Nesterov")) 
         @warn("GPU processing was selected, codebook optimisation has automatically changed to approximate method.")
     end
