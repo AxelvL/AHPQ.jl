@@ -1,6 +1,6 @@
 # AHPQ.jl
 
-[![Build Status](https://travis-ci.com/AxelvL/AHPQ.jl.svg?branch=master)](https://travis-ci.com/AxelvL/AHPQ.jl)
+[![Build Status](https://ci.appveyor.com/api/projects/status/github/AxelvL/AHPQ.jl?svg=true)](https://ci.appveyor.com/project/AxelvL/AHPQ-jl)
 [![Coverage](https://codecov.io/gh/AxelvL/AHPQ.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/AxelvL/AHPQ.jl) 
 
 The Anisotropic Hierarchical Vector Quantizer, based on the Scalable Nearest Neighbours Algorithm (ScaNN).
