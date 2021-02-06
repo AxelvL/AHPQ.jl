@@ -44,7 +44,7 @@ end
 Initialization step of the Product Quantization algorithm. Assigns codeowords to the codebook
 as random selections from the data points.
 """
-function initialization!(data::AbstractMatrix, qd::QuantizerData, MT::MultiThreaded, codebook::Int64)
+function initialization!(data::AbstractMatrix, qd::QuantizerData, MT::MultiThreaded, codebook::Int)
     Threads.@threads for i in 1:qd.n_codebooks
         random_indexes = shuffle!(collect(1:qd.n_dp))[1:qd.n_centers] # Pick random indexes
         for (j, idx) in enumerate(random_indexes)
@@ -54,7 +54,7 @@ function initialization!(data::AbstractMatrix, qd::QuantizerData, MT::MultiThrea
     end
 end
 
-function initialization!(data::AbstractMatrix, qd::QuantizerData, ST::SingleThreaded, codebook::Int64)
+function initialization!(data::AbstractMatrix, qd::QuantizerData, ST::SingleThreaded, codebook::Int)
     for i in 1:qd.n_codebooks
         random_indexes = shuffle!(collect(1:qd.n_dp))[1:qd.n_centers] # Pick random indexes
         for (j, idx) in enumerate(random_indexes)
