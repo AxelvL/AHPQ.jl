@@ -55,7 +55,7 @@ function compute_distances(qd::QuantizerData, dp_ids::AbstractArray, LUT::Abstra
     distances_new
 end
 
-function compute_distances(qd::QuantizerData, dp_ids::AbstractArray, LUT::AbstractMatrix, distances::Int64, norms::AbstractArray)
+function compute_distances(qd::QuantizerData, dp_ids::AbstractArray, LUT::AbstractMatrix, distances::Int, norms::AbstractArray)
     n_dp = length(dp_ids)
     distances = zeros(n_dp)
     for (i,ii) in enumerate(dp_ids)

@@ -46,11 +46,6 @@ using Test
     ahpq = builder(deepcopy(data); T=0.2, a=0, increment_steps = 0, verbose=true, stopcond=stopcond, optimisation="nesterov", multithreading=true);
     @test true
 
-    @info("\nTesting GPU")
-    ahpq = builder(deepcopy(data); T=0, a=0, increment_steps = 0, verbose=true, stopcond=stopcond, optimisation="Nesterov", GPU=true);
-    ahpq = builder(deepcopy(data); T=0.2, a=0, increment_steps = 0, verbose=true, stopcond=stopcond, optimisation="Nesterov", GPU=true);
-    @test true
-
     @info("\nTesting reorder function")
     ahpq = builder(deepcopy(data); T=0.2, a=0, increment_steps = 0, verbose=true, stopcond=stopcond, optimisation="nesterov", reorder=250);
     @test true
