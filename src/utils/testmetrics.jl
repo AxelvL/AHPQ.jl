@@ -61,7 +61,17 @@ function approx_error(qd::QuantizerData, data::AbstractMatrix, rtrue::AbstractAr
     return mean(dist)
 end
 
+
+function get1atNscores(yhat::AbstractMatrix, groundtruth::AbstractMatrix, n_neighbors::Int)
+    scores = zeros(n_neighbors)
+    for i in 1:n_neighbors
+        scores[i] = recall1atN(yhat, groundtruth, i)
+    end
+    return scores
+end
+
 export recallfull
 export recallN
 export recall1atN
 export approx_error
+export get1atNscores
