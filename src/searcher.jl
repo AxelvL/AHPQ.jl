@@ -1,3 +1,10 @@
+"""
+    function identify_relevant_dps(ahpq::AHPQdata, query::AbstractArray)
+
+Computes the inner products between the query and the input pre-clustering vectors.
+Returns the datapoints assigned to the closest `config[:b]` centers and the corresponding distances.
+"""
+
 function identify_relevant_dps(ahpq::AHPQdata, query::AbstractArray)
     n_centers = size(ahpq.clusterdata.centers)[2]
     distances = zeros(n_centers)
@@ -24,6 +31,13 @@ function Base.iterate(f::cluster_iterator,stepid=0)
     return ((stepid,(f.codebook_i-1)*f.n_centers*f.n_dims_center + (stepid-1)*f.n_dims_center + 1),stepid)
 end
 
+
+"""
+    function create_complete_lookup_table(qd::QuantizerData, query::AbstractArray)
+
+Helper function of the main `MIPS` function.\n
+Computes the inner products between all codebook centers and the query. Distances are stored in a complete lookup table and is returned to speed up searching. 
+"""
 function create_complete_lookup_table(qd::QuantizerData, query::AbstractArray)
     lookup_table = zeros(qd.n_codebooks, qd.n_centers)
     for i in 1:qd.n_codebooks
@@ -36,7 +50,12 @@ function create_complete_lookup_table(qd::QuantizerData, query::AbstractArray)
     end
     return lookup_table
 end
+"""
+    function compute_distances(qd::QuantizerData, dp_ids::AbstractArray, LUT::AbstractMatrix, distances::Int, norms::AbstractArray)   
 
+Computes the approximate inner products between the datapoints and the query, based on preclustering distance and the PQ distance.
+Returns a vector of distances for all datapoints in `dp_ids`, using the lookup table `LUT` and preclustering distances `distances`.
+"""
 function compute_distances(qd::QuantizerData, dp_ids::AbstractArray, LUT::AbstractMatrix, distances::AbstractArray, norms::AbstractArray)
     distances_new = Float32[]
     dp_i = 0
@@ -68,7 +87,21 @@ function compute_distances(qd::QuantizerData, dp_ids::AbstractArray, LUT::Abstra
     return distances
 end
 
+"""
+    function MIPS(ahpq::AHPQdata, query::AbstractArray, k::Int)
 
+Searches the most `k` max inner products for the input query/queries for the
+given indexes and configurations `ahpq`. Takes a single query-vector or a set of queries (matrix).
+
+# Example
+```julia
+traindata = rand(d, n)
+queries = rand(d, m)
+ahpq = builder(traindata, 0.2)
+
+k_neares_neighbours = MIPS(ahpq, queries, 10)
+k_neares_neighbours = MIPS(ahpq, queries[:,1], 10)
+"""
 function MIPS(ahpq::AHPQdata, query::AbstractArray, k::Int)
     
      # Step 1

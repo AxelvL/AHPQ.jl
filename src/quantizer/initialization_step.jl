@@ -17,7 +17,8 @@ end
 
 """
     function GenerateQuantizerData(data::AbstractMatrix; n_codebooks::Int, n_centers::Int)
-Initialises an empty codebook / assignments data structure.
+
+Initialises an empty codebook & indexes data structure with the right shape for the n_codebooks and n_centers given.
 """
 function GenerateQuantizerData(data::AbstractMatrix, n_codebooks::Int, n_centers::Int)
     n_dim, n_dp = size(data)
@@ -30,6 +31,7 @@ end
 
 """
     function get_indexes(qd::QuantizerData, i::Int, j::Int)    
+
 Helper function for the initialization step.\n 
 Converts the dimension and cluster numbers to the flattened format of the codebook.
 """
@@ -40,9 +42,12 @@ function get_indexes(qd::QuantizerData, i::Int, j::Int)
 end
 
 """
-    function initialization!(data::AbstractMatrix, qd::QuantizerData, MT::MultiThreaded)
+    function initialization!(data::AbstractMatrix, qd::QuantizerData, MT::MultiThreaded, codebook::AbstractArray)
+        
 Initialization step of the Product Quantization algorithm. Assigns codeowords to the codebook
-as random selections from the data points.
+as random selections from the data points if codebook input is '0'. \n 
+If an approximate codebook is given (from incremental or Euclidean estimation), it simply takes this data
+and updates the empty `qd.C` with the input values.
 """
 function initialization!(data::AbstractMatrix, qd::QuantizerData, MT::MultiThreaded, codebook::Int)
     Threads.@threads for i in 1:qd.n_codebooks

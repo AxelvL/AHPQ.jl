@@ -5,6 +5,13 @@
 #################################################################################################
 
 ##################################### B-Matrix methods ##########################################
+
+"""
+    function inner_loop_BTB!(qd::QuantizerData, diag::AbstractArray, Bsum, i)    
+
+Inner loop of the BTB computation, finds the values in the diagonal by taking out the non-zero
+values from ∑B.
+"""
 function inner_loop_BTB!(qd::QuantizerData, diag::AbstractArray, Bsum, i)
     i1_nzval = (i-1)*qd.n_dims_center*qd.n_centers+1
     i2_nzval = i1_nzval+qd.n_centers-1
@@ -13,6 +20,12 @@ function inner_loop_BTB!(qd::QuantizerData, diag::AbstractArray, Bsum, i)
     @inbounds diag[i1_diag:i2_diag] = @inbounds @view Bsum.nzval[i1_nzval:i2_nzval]
 end
 
+"""
+    function compute_BTB(qd::QuantizerData, processing::MultiThreaded)    
+
+Helper function of the codebook update step. Computes the ∑BTB matrix by summing the sparse matrices
+and deriving the values on the diagonal from the non-zero values of the result to speed up the computaiton.
+"""
 function compute_BTB(qd::QuantizerData, processing::SingleThreaded)
     Bsum = sum(qd.I.B)
     diag = zeros(Int, qd.n_codebooks*qd.n_centers)
@@ -31,7 +44,11 @@ function compute_BTB(qd::QuantizerData, processing::MultiThreaded)
     return Diagonal(repeat(diag, inner=qd.n_dims_center))
 end
 
+"""
+    function compute_BTx(data::AbstractMatrix, qd::QuantizerData)    
 
+Computes the ∑BTx matrix from the quantizer and the input data.
+"""
 function compute_BTx(data::AbstractMatrix, qd::QuantizerData)
     Bsize = (qd.n_dims_center * qd.n_codebooks * qd.n_centers)
     sumBTx = zeros(Bsize)
@@ -46,6 +63,14 @@ function compute_BMatrices(data::AbstractMatrix, qd::QuantizerData, processing::
     BTx = compute_BTx(data, qd)
     return BTB, BTx
 end
+
+"""
+    function compute_BMatrices(data::AbstractMatrix, qd::QuantizerData, processing::GPU)
+
+Main helper function of the codebook update step. Calls the right functions to compute the BTB and
+BTx matrix from the data and configurations. Returns them as a normal array or `CuArray` depending
+on the processing setting.
+"""
 function compute_BMatrices(data::AbstractMatrix, qd::QuantizerData, processing::GPU)
     BTB = compute_BTB(qd, MultiThreaded())
     BTx = compute_BTx(data, qd)
@@ -55,9 +80,11 @@ function compute_BMatrices(data::AbstractMatrix, qd::QuantizerData, processing::
 end
 
 """
-function optimisation!(BTB::AbstractMatrix, BTx::AbstractArray, update_method::BMatrix, 
+function optimisation!(BTB::AbstractMatrix, BTx::AbstractArray, update_method::UpdateMethod, 
     optimisation_method::OptimizationMethod, processing::Processing)
-Computes the new codebook given the BTB and BTx marix.
+
+Computes the new codebook given the BTB and BTx marix and the optimisation method. Allows
+for Exact updating (BTB^-1 ⋅ BTx) and Approximate (Nesterov) updating using ∇(BTB*C ⋅ C) - (2*BTx ⋅ C).
 """
 function optimisation!(BTB::AbstractMatrix, BTx::AbstractArray, 
                         optimisation_method::Exact, _::Any)
@@ -86,7 +113,14 @@ function optimisation!(BTB::AbstractMatrix, BTx::AbstractArray,
     end
     return C
 end
+"""
+    function update_codebook!(data::AbstractMatrix, qd::QuantizerData, update_method::UpdateMethod, 
+    processing::Processing, optimisation_method::OptimizationMethod)
+    
+Main codebook update function; selects the appropriate methods to compute the ∑BTB and ∑BTx matrices
+given the configurations and updates the codebook `qd.C` in place using the optimisation method selected.
 
+"""
 function update_codebook!(data::AbstractMatrix, qd::QuantizerData, update_method::BMatrix, 
                                 processing::Processing, optimisation_method::OptimizationMethod)
     BTB, BTx = compute_BMatrices(data, qd, processing)

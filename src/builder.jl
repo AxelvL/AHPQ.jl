@@ -7,32 +7,31 @@ struct AHPQdata
 end
 
 """
-    builder(data::Matrix, T::AbstractFloat; n_codebooks::Int, n_centers::Int, kwargs...)
+    function builder(data::Matrix; T::Real, kwargs...)
 
 Main constructor for building the (Anisotropic) Hierarchical Product Quantizer.\n 
 Leave out the keyword parameter (T::AbstractFloat) to train on Euclidean loss instead of Anisotropic loss
     
 # Main Arguments
  * `Matrix` input data
-
-# Keyword Arguments
  * `T::AbstractFloat` Threshold parameter of the Anisotropic loss function, set to 0 to use L2_loss
 
-# Optional Arguments
+# Kwargs...
+ * `T_preclustering::Int=-1` the `T` parameter for the preclustering loss function, set to -1 to use the same value as for `T`, 0 to use L2_loss
  * `n_codebooks::Int=n_dims/2` number of codebooks to train
  * `n_centers::Int=8` number of clusters/centers to train
  * `a::Int=√n_dp` number of clusters generated in preclustering step, set to 0 to turn off
  * `b::Int=(n_clusters_to_generate ÷ 5 + 2)` number of clusters pruned from preclustering step
- * `initialize_with_euclidean_loss::Bool=true` switches euclidean pre-training on/off
+ * `initialise_with_euclidean_loss::Bool=true` switches euclidean pre-training on/off
  * `inverted_index::Bool=true` switches to IVF methods for Euclidean quantization
  * `max_iter::Int=1000` the max number of iterations of the assignment_step-codebook_update loop
- * `stopcond<:AbstractFloat=9e-2` the stopcondition (l2-distance of codebook update) for the assignment_step-codebook_update loop 
+ * `stopcond<:AbstractFloat=1e-2` the stopcondition (l2-distance of codebook update) for the assignment_step-codebook_update loop 
  * `verbose::Bool=false` switches training information updates on/off
  * `max_iter_assignments::Int=10` maximum iterations for the approximate assignment step of anisotorpic quantization
- * `optimization::String="exact"` the optimization method for the l2_quantizer, takes: ("exact", "nesterov")
+ * `optimisation::String="exact"` the optimisation method for the codebook udpate step, takes: ("exact", "nesterov")
  * `multithreading::Bool=false` switches multi-threading on/off
- * `GPU::Bool=false` switches optimization on GPU on/off (requires CUDA.jl)
- * `increment_steps::Int=4` number of incremental steps, use 0 to switch off incremental training
+ * `GPU::Bool=false` switches optimization on GPU on/off (uses CUDA.jl)
+ * `increment_steps::Int=floor(log10(training_points))-2)` number of incremental steps, use 0 to switch off incremental training
  * `reorder::Int=0` number of datapoints used for exact inner product reordering
  * `training_points::Int=ceil(n_dp/5))` number of training points to train on
 

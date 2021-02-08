@@ -2,6 +2,14 @@ include("initialization_step.jl")
 include("partition_assignment_step.jl")
 include("codebook_update_step.jl")
 
+
+"""
+    function quantizer(data::AbstractMatrix, η::Loss, codebook::Any, config::NamedTuple)
+
+Main Quantization function calling the Anisotorpic or L2 Product/Vector quantizer.
+Takes an input data set, a loss function (L2 or Anisotropic Weights), an input codebook to start from
+in case a starting estimate is provided and configuration settings. Returns a QuantizerData data structure.
+"""
 function quantizer(data::AbstractMatrix, η::L2_loss, codebook::Any, config::NamedTuple)
     if config[:verbose] @info("Starting L2 Quantization...") end
     thread, update_method, optim_method, processing = generate_config_vars(config)
@@ -53,6 +61,12 @@ end
 function logrange(x1, n) return (Int(floor(10^y)) for y in range(log10(x1)-n+1, log10(x1), length=n)) end
 function subsample(n_dp, data) return data[:,shuffle!(collect(1:size(data)[2]))[1:n_dp]] end
 
+"""
+    function incremental_quantization(data::AbstractMatrix, η::Weights, config::NamedTuple)    
+        
+Wrapper for the main quantization function to instead train the VQ/PQ on an increasingly large subsample
+of the data set. Can be used to speed up training of the quantizer in case of high-dimensional data. 
+"""
 function incremental_quantization(data::AbstractMatrix, η::Weights, config::NamedTuple)
     thread, update_method, optim_method, processing = generate_config_vars(config)
     tp = if config.training_points > 0 config.training_points else size(data)[2] end
