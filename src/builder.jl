@@ -82,12 +82,13 @@ function builder(data::Matrix; T::Real, kwargs...)
         qd = quantizer(traindata, η, codebook, config)
     end
     codebook = deepcopy(qd.C)
-    if config.training_points > 0
-        qd = GenerateQuantizerData(data, config.n_codebooks, config.n_centers)
-        qd.C[:].= codebook
-        thread = if config.multithreading MultiThreaded() else SingleThreaded() end
-        assignment_step!(data, qd, BMatrix(), thread)
-    end
+
+    ## Final Assignments on complete data set
+    qd = GenerateQuantizerData(data, config.n_codebooks, config.n_centers)
+    thread = if config.multithreading MultiThreaded() else SingleThreaded() end
+    initialization!(data, qd, thread, codebook)
+    assignment_step!(data, qd, BMatrix(), thread)
+    if T>0 assignment_step!(data, qd, η, config[:max_iter_assignments], thread) end
 
     # Step 3 - Generate residuals for exact reordering
     for i in 1:n_dp
