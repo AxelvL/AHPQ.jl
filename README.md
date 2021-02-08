@@ -58,7 +58,7 @@ traindata = rand(d, n)
 l2_hpq = builder(traindata; T=0, n_codebooks=50,
                                           n_centers=16)
 ahpq   = builder(traindata; T=0.2, n_codebooks=50,
-                                               n_centers=16)
+                                          n_centers=16)
 ```
 
 After having constructed the searcher, the MIPS function can be used to handle a single query or a batch of queries.  The searcher will return `k` nearest neighbours' indexes (provided as a parameter).
@@ -89,6 +89,7 @@ See the [public colab notebook](https://colab.research.google.com/drive/1Wudr7_Q
 ## Future to do's
 * Improve querying performance by implementing using cache friendly 16-bit lookup-tables and corresponding in-cache LUT16 methods (Wu et al., 2019)
 * Implement batching
+* Improve Multi-threading & Inverted Index combination performance
 ***
 
 ## References:
